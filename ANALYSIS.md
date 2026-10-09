@@ -248,6 +248,21 @@ check `rowCount === 1`) → FIFO deduction → COGS stamp, plus a unique client-
 * The cookie payload is plain base64url (`{"id":1,"name":"Ava Sterling","role":"admin"}`) — readable by
   any XSS or a curious user; there is no revocation list, so a fired employee keeps access for up to 12 h.
 
+### Medium — the session cookie cannot survive a cross-site iframe
+
+`setSessionCookie()` issued `SameSite=Lax`. That is correct for a normally-served site, but it makes the
+app unusable in any cross-site embed (dev previews, a POS page framed inside a back-office portal):
+the login action succeeds and the cookie is set, yet the browser never sends it back from the iframe, so
+`proxy.ts` sees no session and the very next navigation bounces to `/login`. Observed live — the server log
+shows `POST /login 200 · loginWithPin(1, "0000")` immediately followed by `GET /login 200`, i.e. a
+successful login that looks like a failed one to the user.
+
+Fixed here behind an opt-in env flag (`COOKIE_SAMESITE=none` → `SameSite=None; Secure; Partitioned`,
+the CHIPS attributes a third-party context requires; `clearSessionCookie` now mirrors them so sign-out
+actually clears the cookie). Default remains `lax`. Related, and still open: wiping `.next` rotates the
+server-action encryption key, so every action id changes and an already-open browser tab posts ids the
+server no longer knows ("Server action not found") — always hard-refresh after a rebuild.
+
 ### Medium — refund restock is costed at the *current* average, not the original layer
 
 `refundOrder` calls `addLayer(..., num(ing?.avgCostCents), "refund_restock", …)`. Correct behaviour would
@@ -302,5 +317,6 @@ front of a presence-only cookie check. All four are small, localised fixes; the 
 | `package.json` | added `db:push`, `db:generate`, `demo` scripts |
 | `ANALYSIS.md` | this document |
 | `src/actions/pos.ts` | bug fixes §6.1 and §6.2 |
+| `src/lib/auth.ts` | opt-in cross-site session cookie (`COOKIE_SAMESITE=none`) — §7 |
 
 `demo-output/` (CSV exports, receipt HTML, `summary.json`) is generated and git-ignored.

@@ -36,19 +36,39 @@ export async function getSession(): Promise<Session | null> {
   }
 }
 
+/**
+ * Cookie attributes.
+ *
+ * Default (`lax`) is the right posture for a normally-served site. When the app
+ * is embedded in a cross-site iframe — e.g. a sandboxed live preview — a Lax
+ * cookie is never sent back: login succeeds server-side, then the very next
+ * request looks anonymous and the proxy bounces the user to /login again.
+ * Set `COOKIE_SAMESITE=none` to opt into the attributes cross-site contexts
+ * require (SameSite=None; Secure; Partitioned). Partitioned (CHIPS) keeps the
+ * cookie scoped to the embedding site, and browsers that don't know the
+ * attribute simply ignore it.
+ */
+const CROSS_SITE_COOKIE = (process.env.COOKIE_SAMESITE ?? "lax").toLowerCase() === "none";
+
+function sessionCookieAttributes() {
+  return CROSS_SITE_COOKIE
+    ? ({ sameSite: "none", secure: true, partitioned: true } as const)
+    : ({ sameSite: "lax", secure: process.env.NODE_ENV === "production" } as const);
+}
+
 export async function setSessionCookie(s: Session): Promise<void> {
   const b64 = Buffer.from(JSON.stringify(s), "utf8").toString("base64url");
   const store = await cookies();
   store.set(COOKIE, `${b64}.${sign(b64)}`, {
     httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: 60 * 60 * 12, // 12h shift-length session
+    ...sessionCookieAttributes(),
   });
 }
 
 export async function clearSessionCookie(): Promise<void> {
   const store = await cookies();
-  store.delete(COOKIE);
+  // deletion must carry the same attributes or the browser keeps the old cookie
+  store.delete({ name: COOKIE, httpOnly: true, path: "/", ...sessionCookieAttributes() });
 }
