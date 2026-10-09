@@ -2,11 +2,30 @@
 // Production note: swap for a managed IdP / next-auth with refresh tokens.
 import { createHmac, createHash } from "crypto";
 import { cookies } from "next/headers";
+import { db } from "@/db";
+import { users } from "@/db/schema";
+import { and, asc, eq } from "drizzle-orm";
 
 const SECRET = process.env.SESSION_SECRET || "ember-dev-secret-change-in-production";
 const COOKIE = "ember_session";
 
 export type Session = { id: number; name: string; role: string };
+
+/**
+ * Demo affordance for cookie-hostile embeds.
+ *
+ * When the app is shown inside a cross-site iframe whose browser refuses
+ * third-party cookies (some sandbox previews, Safari ITP), a session can never
+ * persist: login succeeds and the next request looks anonymous again. Setting
+ * DEMO_AUTOLOGIN=<role> makes every cookie-less request resolve to that staff
+ * account so the UI stays explorable.
+ *
+ * Development only — it is inert when NODE_ENV=production. Never set it on a
+ * real deployment: it is, by design, an authentication bypass.
+ */
+const DEMO_ROLE = (process.env.DEMO_AUTOLOGIN ?? "").trim().toLowerCase();
+export const demoAutoLogin =
+  process.env.NODE_ENV !== "production" && DEMO_ROLE.length > 0;
 
 function sign(data: string): string {
   return createHmac("sha256", SECRET).update(data).digest("base64url");
@@ -20,20 +39,50 @@ export function verifyPin(pin: string, storedHash: string): boolean {
   return hashPin(pin) === storedHash;
 }
 
-export async function getSession(): Promise<Session | null> {
-  const store = await cookies();
-  const raw = store.get(COOKIE)?.value;
-  if (!raw) return null;
+function decodeSession(raw: string): Session | null {
   const dot = raw.lastIndexOf(".");
   if (dot < 0) return null;
   const b64 = raw.slice(0, dot);
-  const sig = raw.slice(dot + 1);
-  if (sign(b64) !== sig) return null;
+  if (sign(b64) !== raw.slice(dot + 1)) return null;
   try {
     return JSON.parse(Buffer.from(b64, "base64url").toString("utf8")) as Session;
   } catch {
     return null;
   }
+}
+
+let cachedDemoSession: Promise<Session | null> | null = null;
+let warned = false;
+
+function demoSession(): Promise<Session | null> {
+  cachedDemoSession ??= db
+    .select({ id: users.id, name: users.name, role: users.role })
+    .from(users)
+    .where(and(eq(users.role, DEMO_ROLE), eq(users.active, true)))
+    .orderBy(asc(users.id))
+    .limit(1)
+    .then((rows) => rows[0] ?? null)
+    .catch(() => null);
+  return cachedDemoSession;
+}
+
+export async function getSession(): Promise<Session | null> {
+  const store = await cookies();
+  const raw = store.get(COOKIE)?.value;
+  if (raw) {
+    const session = decodeSession(raw);
+    if (session) return session;
+  }
+  if (!demoAutoLogin) return null;
+  const demo = await demoSession();
+  if (demo && !warned) {
+    warned = true;
+    console.warn(
+      `[auth] DEMO_AUTOLOGIN=${DEMO_ROLE}: cookie-less requests are signed in as ` +
+        `${demo.name} (${demo.role}). Development only — never set this in production.`,
+    );
+  }
+  return demo;
 }
 
 /**

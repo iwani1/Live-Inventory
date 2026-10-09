@@ -263,6 +263,12 @@ actually clears the cookie). Default remains `lax`. Related, and still open: wip
 server-action encryption key, so every action id changes and an already-open browser tab posts ids the
 server no longer knows ("Server action not found") — always hard-refresh after a rebuild.
 
+Some browsers block third-party cookies in iframes outright, which no cookie attribute can fix, so the
+sandbox preview also runs with a **dev-only** `DEMO_AUTOLOGIN=<role>` escape hatch: cookie-less requests
+resolve to that staff account and `/login` redirects into the app. It is inert when `NODE_ENV=production`
+and off unless the variable is set — but it is deliberately an authentication bypass, so it must never be
+set on a real deployment (and should not be in your local `.env`).
+
 ### Medium — refund restock is costed at the *current* average, not the original layer
 
 `refundOrder` calls `addLayer(..., num(ing?.avgCostCents), "refund_restock", …)`. Correct behaviour would
@@ -320,6 +326,7 @@ front of a presence-only cookie check. All four are small, localised fixes; the 
 | `package.json` | added `db:push`, `db:generate`, `db:local`, `demo` scripts; `embedded-postgres` as an *optional* dependency |
 | `ANALYSIS.md` | this document |
 | `src/actions/pos.ts` | bug fixes §6.1 and §6.2 |
-| `src/lib/auth.ts` | opt-in cross-site session cookie (`COOKIE_SAMESITE=none`) — §7 |
+| `src/lib/auth.ts` | opt-in cross-site session cookie (`COOKIE_SAMESITE=none`) + dev-only `DEMO_AUTOLOGIN` preview session — §7 |
+| `src/proxy.ts` | dev-only: with `DEMO_AUTOLOGIN` set, skip the cookie gate and send `/login` into the app |
 
 `demo-output/` (CSV exports, receipt HTML, `summary.json`) is generated and git-ignored.

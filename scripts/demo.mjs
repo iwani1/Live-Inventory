@@ -280,7 +280,16 @@ async function main() {
     `status ${cookAtPos.status} → ${cookAtPos.location}`,
   );
   const anonAtReports = await new Browser("anon").get("/reports");
-  check("anonymous /reports redirects to /login", anonAtReports.location === "/login", `status ${anonAtReports.status}`);
+  if ((ENV.DEMO_AUTOLOGIN ?? "").trim()) {
+    check(
+      `preview mode (DEMO_AUTOLOGIN=${ENV.DEMO_AUTOLOGIN}) serves cookie-less requests`,
+      anonAtReports.status === 200,
+      `status ${anonAtReports.status}`,
+    );
+    say("⚠ DEMO_AUTOLOGIN bypasses the auth gate for iframe previews that refuse cookies — unset it to test the real redirect");
+  } else {
+    check("anonymous /reports redirects to /login", anonAtReports.location === "/login", `status ${anonAtReports.status}`);
+  }
   const cookAtDash = await sessions.cook.get("/");
   say(
     cookAtDash.status === 200

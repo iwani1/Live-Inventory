@@ -104,7 +104,7 @@ npm run build && npm start   # production mode
 | `Could not start PostgreSQL … address already in use` | Something owns 5432. `PGPORT=5433 npm run db:local`, then set `DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5433/app_db` in `.env`. |
 | `Another next dev server is already running` | Next 16 allows one dev server per project directory. `kill <PID>` (the message names it) and re-run. |
 | `relation "users" does not exist` | You skipped `npm run db:push`. |
-| Login loops back to the PIN pad | Locally this means the cookie isn't being stored. Check `.env` has **no** `COOKIE_SAMESITE` line (it's only for cross-site iframe hosting — on `localhost` the default `lax` is correct), and that your browser isn't blocking cookies for localhost. |
+| Login loops back to the PIN pad | Locally this means the cookie isn't being stored. Check `.env` has **no** `COOKIE_SAMESITE` and **no** `DEMO_AUTOLOGIN` line — both exist only for the sandboxed iframe preview (`COOKIE_SAMESITE=none` marks the cookie `Secure`, which some browsers then refuse over plain `http://localhost`). Also check your browser isn't blocking cookies for localhost. |
 | Keypad does nothing when you tap digits | Stale browser tab. After a rebuild (especially if `.next` was deleted) the server-action IDs rotate, so an old bundle posts IDs the server no longer knows. **Hard-refresh**: `Cmd/Ctrl + Shift + R`. |
 | `Failed to download Inter / Space Grotesk from Google Fonts` | No internet access to Google Fonts. Cosmetic — the app falls back to system fonts. |
 | Want a pristine database again | Option A: `Ctrl+C` the cluster, `rm -rf .pgdata`, `npm run db:local`, `npm run db:push`. Any Postgres: `drop schema public cascade; create schema public;` then `npm run db:push`. Restart `next dev` afterwards so the in-process "already seeded" flag resets. |
@@ -122,5 +122,7 @@ The zip ran as-is except for three fixes, all in the commit history of this bran
    ignored `DATABASE_URL`; it now reads `.env`.
 
 Plus additions: `scripts/demo.mjs`, `scripts/dev-db.mjs`, `.env.example`, `.gitignore`, npm scripts
-(`db:push`, `db:generate`, `db:local`, `demo`), `allowedDevOrigins` in `next.config.ts`, and the opt-in
-cross-site session cookie in `src/lib/auth.ts`. Full findings: `ANALYSIS.md`.
+(`db:push`, `db:generate`, `db:local`, `demo`), `allowedDevOrigins` in `next.config.ts`, the opt-in
+cross-site session cookie (`COOKIE_SAMESITE=none`) and the dev-only `DEMO_AUTOLOGIN` preview escape
+hatch in `src/lib/auth.ts` + `src/proxy.ts` — **both flags are sandbox-preview only; leave them unset
+locally.** Full findings: `ANALYSIS.md`.
