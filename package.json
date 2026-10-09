@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
-    "demo": "node scripts/demo.mjs"
+    "demo": "node scripts/demo.mjs",
+    "db:local": "node scripts/dev-db.mjs"
   },
   "dependencies": {
     "dotenv": "17.3.1",
@@ -33,5 +34,8 @@
     "postcss": "8.5.8",
     "tailwindcss": "4.1.17",
     "typescript": "5.9.3"
+  },
+  "optionalDependencies": {
+    "embedded-postgres": "18.4.0-beta.17"
   }
 }

@@ -310,11 +310,14 @@ front of a presence-only cookie check. All four are small, localised fixes; the 
 
 | Path | Purpose |
 | --- | --- |
+| `RUNNING-LOCALLY.md` | step-by-step local runbook (verified against a fresh database) |
 | `scripts/demo.mjs` | End-to-end demo driver (67 assertions over HTTP + SQL) — `npm run demo` |
-| `.env.example` | `DATABASE_URL` + `SESSION_SECRET` template |
-| `.gitignore` | `node_modules`, `.next`, `.env`, `demo-output/` |
+| `scripts/dev-db.mjs` | Zero-install local PostgreSQL 18 (`npm run db:local`), writes `.env` for you |
+| `drizzle.config.ts` | replaces `drizzle.config.json`, which hard-coded one connection string and ignored `DATABASE_URL` |
+| `.env.example` | `DATABASE_URL` + `SESSION_SECRET` (+ optional `COOKIE_SAMESITE`) template |
+| `.gitignore` | `node_modules`, `.next`, `.env`, `.pgdata`, `demo-output/` |
 | `next.config.ts` | `allowedDevOrigins` for reverse-proxied dev origins |
-| `package.json` | added `db:push`, `db:generate`, `demo` scripts |
+| `package.json` | added `db:push`, `db:generate`, `db:local`, `demo` scripts; `embedded-postgres` as an *optional* dependency |
 | `ANALYSIS.md` | this document |
 | `src/actions/pos.ts` | bug fixes §6.1 and §6.2 |
 | `src/lib/auth.ts` | opt-in cross-site session cookie (`COOKIE_SAMESITE=none`) — §7 |
